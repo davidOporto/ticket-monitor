@@ -81,4 +81,6 @@ def check_availability():
 
 if __name__ == "__main__":
     found = check_availability()
-    sys.exit(0 if found else 1)
+    # Always exit 0 to avoid "failed" in GitHub Actions
+    # Telegram notification only sent when available
+    sys.exit(0)
