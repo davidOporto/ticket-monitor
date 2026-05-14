@@ -132,6 +132,24 @@ def webhook():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/webhook_info', methods=['GET'])
+def webhook_info():
+    """Get current webhook info from Telegram"""
+    token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    if not token:
+        return jsonify({'error': 'Bot token not set'}), 500
+
+    try:
+        import requests
+        telegram_api = f"https://api.telegram.org/bot{token}/getWebhookInfo"
+        response = requests.get(telegram_api, timeout=10)
+        response.raise_for_status()
+        return jsonify(response.json())
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/setup_webhook', methods=['GET'])
 def setup_webhook():
     """Setup Telegram webhook (call once after deploy)"""
@@ -143,6 +161,12 @@ def setup_webhook():
 
     try:
         import requests
+
+        # First delete existing webhook
+        delete_api = f"https://api.telegram.org/bot{token}/deleteWebhook"
+        requests.post(delete_api, json={'drop_pending_updates': True}, timeout=10)
+
+        # Set new webhook
         telegram_api = f"https://api.telegram.org/bot{token}/setWebhook"
         response = requests.post(telegram_api, json={'url': webhook_url}, timeout=10)
         response.raise_for_status()
