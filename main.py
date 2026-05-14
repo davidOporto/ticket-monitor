@@ -42,7 +42,7 @@ def setup_bot():
         return None
 
     # Create application
-    bot_app = Application.builder().token(token).build()
+    application = Application.builder().token(token).build()
 
     # Add conversation handler for /add_event
     conv_handler = ConversationHandler(
@@ -55,13 +55,17 @@ def setup_bot():
         fallbacks=[CommandHandler('cancel', cancel)],
     )
 
-    bot_app.add_handler(conv_handler)
-    bot_app.add_handler(CommandHandler('start', start))
-    bot_app.add_handler(CommandHandler('list_events', list_events))
-    bot_app.add_handler(CommandHandler('remove_event', remove_event))
-    bot_app.add_handler(CommandHandler('toggle_event', toggle_event))
+    application.add_handler(conv_handler)
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler('list_events', list_events))
+    application.add_handler(CommandHandler('remove_event', remove_event))
+    application.add_handler(CommandHandler('toggle_event', toggle_event))
 
-    print("🤖 Bot configured (webhook mode)")
+    # Initialize bot synchronously
+    asyncio.run(application.initialize())
+    print("🤖 Bot initialized (webhook mode)")
+
+    bot_app = application
     return bot_app
 
 
@@ -118,10 +122,9 @@ def webhook():
         update_data = request.get_json(force=True)
         update = Update.de_json(update_data, bot_app.bot)
 
-        # Process update (with initialization)
+        # Process update in async context
         async def process():
-            async with bot_app:
-                await bot_app.process_update(update)
+            await bot_app.process_update(update)
 
         asyncio.run(process())
 
@@ -129,6 +132,8 @@ def webhook():
 
     except Exception as e:
         print(f"⚠️ Webhook error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 
