@@ -5,6 +5,7 @@ Webhook compatible with gunicorn workers
 """
 import os
 import asyncio
+import threading
 from flask import Flask, jsonify, request
 from datetime import datetime
 from check_tickets import check_all_events
@@ -30,16 +31,34 @@ app = Flask(__name__)
 
 # Bot application (global)
 bot_app = None
+event_loop = None
+
+
+def run_event_loop():
+    """Run event loop in background thread"""
+    global event_loop
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
+    event_loop.run_forever()
 
 
 def setup_bot():
     """Setup bot application with handlers"""
-    global bot_app
+    global bot_app, event_loop
 
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     if not token:
         print("⚠️ TELEGRAM_BOT_TOKEN not set - bot disabled")
         return None
+
+    # Start event loop in background thread
+    loop_thread = threading.Thread(target=run_event_loop, daemon=True)
+    loop_thread.start()
+
+    # Wait for loop to be ready
+    import time
+    while event_loop is None:
+        time.sleep(0.1)
 
     # Create application
     application = Application.builder().token(token).build()
@@ -61,8 +80,9 @@ def setup_bot():
     application.add_handler(CommandHandler('remove_event', remove_event))
     application.add_handler(CommandHandler('toggle_event', toggle_event))
 
-    # Initialize bot synchronously
-    asyncio.run(application.initialize())
+    # Initialize bot in background loop
+    future = asyncio.run_coroutine_threadsafe(application.initialize(), event_loop)
+    future.result()  # Wait for initialization
     print("🤖 Bot initialized (webhook mode)")
 
     bot_app = application
@@ -114,7 +134,7 @@ def health():
 @app.route('/webhook', methods=['POST'])
 def webhook():
     """Telegram webhook endpoint"""
-    if not bot_app:
+    if not bot_app or not event_loop:
         return jsonify({'error': 'Bot not configured'}), 500
 
     try:
@@ -122,11 +142,11 @@ def webhook():
         update_data = request.get_json(force=True)
         update = Update.de_json(update_data, bot_app.bot)
 
-        # Process update in async context
-        async def process():
-            await bot_app.process_update(update)
-
-        asyncio.run(process())
+        # Process update in background event loop
+        asyncio.run_coroutine_threadsafe(
+            bot_app.process_update(update),
+            event_loop
+        )
 
         return jsonify({'ok': True})
 
