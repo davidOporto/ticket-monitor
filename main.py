@@ -69,7 +69,7 @@ def setup_bot():
 setup_bot()
 
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
     """Health check"""
     return jsonify({
@@ -79,7 +79,7 @@ def index():
     })
 
 
-@app.route('/check')
+@app.route('/check', methods=['GET'])
 def check():
     """Run ticket check - called by cron-job.org"""
     try:
@@ -101,7 +101,7 @@ def check():
         }), 500
 
 
-@app.route('/health')
+@app.route('/health', methods=['GET'])
 def health():
     """Health check"""
     return jsonify({'status': 'healthy'})
@@ -118,8 +118,12 @@ def webhook():
         update_data = request.get_json(force=True)
         update = Update.de_json(update_data, bot_app.bot)
 
-        # Process update
-        asyncio.run(bot_app.process_update(update))
+        # Process update (with initialization)
+        async def process():
+            async with bot_app:
+                await bot_app.process_update(update)
+
+        asyncio.run(process())
 
         return jsonify({'ok': True})
 
