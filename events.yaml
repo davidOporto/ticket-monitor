@@ -1,0 +1,22 @@
+# Ticket Monitor Events Configuration
+# This file will be stored in a private GitHub Gist
+# Bot can add/remove events dynamically
+
+events:
+  - id: one-piece-165
+    name: "One Piece Treasure Cup"
+    url: "https://tickets.organizedplay.events/Event/Index?id=165"
+    tickets:
+      - "One Piece Treasure Cup Ticket - Friday 10:00AM"
+      - "One Piece Treasure Cup Ticket - Saturday 10:00AM"
+      - "One Piece Treasure Cup Ticket - Sunday 09:00AM"
+    enabled: true
+
+# Example format for adding more events:
+#  - id: autre-event-123
+#    name: "Autre Torneig"
+#    url: "https://tickets.organizedplay.events/Event/Index?id=123"
+#    tickets:
+#      - "Tournament Ticket - Saturday"
+#      - "Tournament Ticket - Sunday"
+#    enabled: true

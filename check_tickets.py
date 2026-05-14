@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
 """
-Monitor One Piece Treasure Cup tickets
+Monitor organized play event tickets
 Checks if 'Sold out' changes to available
 Sends Telegram notification
+Uses GitHub Gist for dynamic event config
 """
 import requests
 import sys
 import os
 from datetime import datetime
-
-URL = "https://tickets.organizedplay.events/Event/Index?id=165"
-TICKETS = [
-    "One Piece Treasure Cup Ticket - Friday 10:00AM",
-    "One Piece Treasure Cup Ticket - Saturday 10:00AM",
-    "One Piece Treasure Cup Ticket - Sunday 09:00AM"
-]
+from config_manager import get_config_manager
 
 def send_telegram(message):
     """Send Telegram notification"""
@@ -41,15 +36,19 @@ def send_telegram(message):
         print(f"⚠️ Error sending Telegram: {e}")
         return False
 
-def check_availability():
-    """Check if any ticket available"""
+def check_event(event: dict) -> bool:
+    """Check if any ticket available for single event"""
+    url = event['url']
+    tickets = event['tickets']
+    name = event['name']
+
     try:
-        response = requests.get(URL, timeout=10)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
         html = response.text
 
         available = []
-        for ticket in TICKETS:
+        for ticket in tickets:
             # Check if ticket section contains 'Sold out'
             if ticket in html:
                 # Find ticket section
@@ -63,24 +62,48 @@ def check_availability():
 
         if available:
             message = (
-                "🎟️ <b>TICKETS DISPONIBLES!</b>\n\n"
+                f"🎟️ <b>TICKETS DISPONIBLES: {name}</b>\n\n"
                 + "\n".join([f"✅ {t}" for t in available])
-                + f"\n\n🔗 <a href='{URL}'>COMPRAR AHORA</a>"
+                + f"\n\n🔗 <a href='{url}'>COMPRAR AHORA</a>"
             )
-            print(f"🎉 TICKETS AVAILABLE: {', '.join(available)}")
-            print(f"🔗 {URL}")
+            print(f"🎉 [{name}] TICKETS AVAILABLE: {', '.join(available)}")
+            print(f"🔗 {url}")
             send_telegram(message)
             return True
         else:
-            print(f"❌ All sold out - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"❌ [{name}] All sold out - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             return False
 
     except Exception as e:
-        print(f"⚠️ Error checking: {e}")
+        print(f"⚠️ [{name}] Error checking: {e}")
         return False
 
+
+def check_all_events():
+    """Check all configured events"""
+    config_mgr = get_config_manager()
+
+    if not config_mgr:
+        print("⚠️ Config manager not available, exiting")
+        return False
+
+    events = config_mgr.get_events()
+
+    if not events:
+        print("⚠️ No events configured")
+        return False
+
+    print(f"📋 Checking {len(events)} event(s)...")
+
+    found_any = False
+    for event in events:
+        if check_event(event):
+            found_any = True
+
+    return found_any
+
 if __name__ == "__main__":
-    found = check_availability()
-    # Always exit 0 to avoid "failed" in GitHub Actions
+    found = check_all_events()
+    # Always exit 0 to avoid "failed" status
     # Telegram notification only sent when available
     sys.exit(0)

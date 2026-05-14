@@ -1,0 +1,33 @@
+services:
+  # Flask app - cron-job.org calls /check endpoint
+  - type: web
+    name: ticket-monitor-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT app:app
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GIST_ID
+        sync: false
+
+  # Telegram bot - runs continuously
+  - type: worker
+    name: ticket-monitor-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GIST_ID
+        sync: false
